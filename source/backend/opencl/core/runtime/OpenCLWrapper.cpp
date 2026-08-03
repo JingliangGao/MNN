@@ -34,7 +34,7 @@ bool OpenCLSymbols::LoadOpenCLLibrary() {
         "/vendor/lib64/chipsetsdk/libGLES_mali.so",
         "/system/lib64/libGLES_mali.so",
         "libGLES_mali.so",
-        "/vendor/lib64/chipsetsdk/libEGI_imp1.so",
+        "/vendor/lib64/chipsetsdk/libEGL_impl.so",
     #elif defined(__ANDROID__)
         "libOpenCL.so",
         "libGLES_mali.so",
