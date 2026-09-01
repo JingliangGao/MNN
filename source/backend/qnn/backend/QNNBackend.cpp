@@ -2059,14 +2059,33 @@ int QnnBackend::getTensorIdx(const Tensor * tensor) const {
         MNN_ASSERT(TensorUtils::getDescribe(tensor)->usage == Tensor::InsideDescribe::Usage::CONSTANT);
         // MNN_ASSERT(tensor->dimensions() <= 2);
         std::vector<uint32_t> tDims = getNHWCShape(tensor);
+        // Compute total number of elements for sizing fallback buffers
+        uint32_t numElement = 1;
+        for (auto d : tDims) {
+            numElement *= d;
+        }
         Qnn_DataType_t tDataType;
         std::shared_ptr<QNNTensorWrapper> qnnTensorWrapper;
         if (tensor->getType().code == halide_type_int && tensor->getType().bits == 32) {
             tDataType = QNN_DATATYPE_INT_32;
-            qnnTensorWrapper = QNNTensorWrapper::createStaticTensor(tName, tDataType, tDims, tensor->host<int>());
+            const void * hostBuf = static_cast<const void *>(tensor->host<int>());
+            // Guard against null host pointer: create zero-initialized fallback buffer
+            std::vector<int32_t> zeroBuffer(numElement, 0);
+            if (hostBuf == nullptr) {
+                MNN_PRINT("[Warning] QNN: Unregistered CONSTANT tensor has null host buffer, using zero-filled default.");
+                hostBuf = static_cast<const void *>(zeroBuffer.data());
+            }
+            qnnTensorWrapper = QNNTensorWrapper::createStaticTensor(tName, tDataType, tDims, hostBuf);
         } else if (tensor->getType().code == halide_type_float) {
             tDataType = mUseFP16 ? QNN_DATATYPE_FLOAT_16 : QNN_DATATYPE_FLOAT_32;
-            qnnTensorWrapper = QNNTensorWrapper::createStaticFloatTensor(tName, tDataType, tDims, tensor->host<float>());
+            const float * hostBuf = tensor->host<float>();
+            // Guard against null host pointer: create zero-initialized fallback buffer
+            std::vector<float> zeroBuffer(numElement, 0.0f);
+            if (hostBuf == nullptr) {
+                MNN_PRINT("[Warning] QNN: Unregistered CONSTANT tensor has null host buffer, using zero-filled default.");
+                hostBuf = zeroBuffer.data();
+            }
+            qnnTensorWrapper = QNNTensorWrapper::createStaticFloatTensor(tName, tDataType, tDims, hostBuf);
         } else {
             MNN_ASSERT(false);
         }
